@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+build/
+dist/
+*.exe
+*.log
+apply_update.bat
+.idea/
+.vscode/
+*.spec
