@@ -8,3 +8,4 @@ apply_update.bat
 .idea/
 .vscode/
 *.spec
+generate_key.py

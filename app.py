@@ -139,6 +139,169 @@ class ThreadIOContext:
         return self.readline()
 
 
+# ── License Activation Dialog ──────────────────────────────────────────────────
+class LicenseActivationDialog(ctk.CTkToplevel):
+    def __init__(self, parent, hwid, verify_callback):
+        super().__init__(parent)
+        self.parent = parent
+        self.hwid = hwid
+        self.verify_callback = verify_callback
+        self.success = False
+        
+        self.title("Activation Required")
+        self.geometry("500x320")
+        self.resizable(False, False)
+        self.configure(fg_color=C["bg_dark"])
+        
+        # Center the window
+        self.update_idletasks()
+        width = 500
+        height = 320
+        x = (self.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.winfo_screenheight() // 2) - (height // 2)
+        self.geometry(f"{width}x{height}+{x}+{y}")
+        
+        # Make modal
+        self.transient(parent)
+        self.grab_set()
+        
+        # Prevent normal window closing
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
+        
+        # Brand Title area
+        title_frame = ctk.CTkFrame(self, fg_color="transparent")
+        title_frame.pack(fill="x", padx=30, pady=(30, 20))
+        
+        logo_png = find_asset("logo.png")
+        if logo_png:
+            try:
+                from PIL import Image
+                img = ctk.CTkImage(light_image=Image.open(logo_png), dark_image=Image.open(logo_png), size=(36, 36))
+                ctk.CTkLabel(title_frame, image=img, text="").pack(side="left", padx=(0, 10))
+                self._logo_img = img
+            except Exception:
+                pass
+                
+        ctk.CTkLabel(
+            title_frame,
+            text="Qaff Digital Professional",
+            font=ctk.CTkFont("Segoe UI", 20, "bold"),
+            text_color=C["fg"],
+        ).pack(side="left")
+        
+        # HWID label and copy button
+        lbl_hwid_desc = ctk.CTkLabel(
+            self,
+            text="Provide this Hardware ID (HWID) to the developer to get your key:",
+            font=ctk.CTkFont("Segoe UI", 12),
+            text_color=C["fg2"],
+            anchor="w"
+        )
+        lbl_hwid_desc.pack(fill="x", padx=30, pady=(0, 4))
+        
+        hwid_row = ctk.CTkFrame(self, fg_color="transparent")
+        hwid_row.pack(fill="x", padx=30, pady=(0, 15))
+        
+        self.entry_hwid = ctk.CTkEntry(
+            hwid_row,
+            font=ctk.CTkFont("Consolas", 12, "bold"),
+            fg_color=C["card"],
+            border_color=C["border"],
+            text_color=C["primary"],
+            height=30
+        )
+        self.entry_hwid.insert(0, self.hwid)
+        self.entry_hwid.configure(state="readonly")
+        self.entry_hwid.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        
+        btn_copy = ctk.CTkButton(
+            hwid_row,
+            text="Copy",
+            font=ctk.CTkFont("Segoe UI", 11, "bold"),
+            fg_color=C["primary"],
+            hover_color=C["primary_hover"],
+            width=70,
+            height=30,
+            command=self.copy_hwid
+        )
+        btn_copy.pack(side="left")
+        
+        # License key entry
+        lbl_key_desc = ctk.CTkLabel(
+            self,
+            text="Enter Serial Key:",
+            font=ctk.CTkFont("Segoe UI", 12, "bold"),
+            text_color=C["fg"],
+            anchor="w"
+        )
+        lbl_key_desc.pack(fill="x", padx=30, pady=(0, 4))
+        
+        self.entry_key = ctk.CTkEntry(
+            self,
+            placeholder_text="XXXX-XXXX-XXXX-XXXX",
+            font=ctk.CTkFont("Consolas", 12, "bold"),
+            fg_color=C["card"],
+            border_color=C["border"],
+            height=30
+        )
+        self.entry_key.pack(fill="x", padx=30, pady=(0, 20))
+        
+        # Action buttons
+        btn_row = ctk.CTkFrame(self, fg_color="transparent")
+        btn_row.pack(fill="x", padx=30, pady=(0, 20))
+        
+        btn_close = ctk.CTkButton(
+            btn_row,
+            text="Exit",
+            font=ctk.CTkFont("Segoe UI", 12, "bold"),
+            fg_color="#37373f",
+            hover_color="#4f4f5a",
+            width=100,
+            height=32,
+            command=self.on_close
+        )
+        btn_close.pack(side="left")
+        
+        btn_activate = ctk.CTkButton(
+            btn_row,
+            text="Activate Software",
+            font=ctk.CTkFont("Segoe UI", 12, "bold"),
+            fg_color=C["success"],
+            hover_color=C["success_hover"],
+            width=180,
+            height=32,
+            command=self.activate
+        )
+        btn_activate.pack(side="right")
+
+    def copy_hwid(self):
+        self.clipboard_clear()
+        self.clipboard_append(self.hwid)
+        from tkinter import messagebox
+        messagebox.showinfo("Copied", "Hardware ID copied to clipboard successfully!")
+        
+    def activate(self):
+        key = self.entry_key.get().strip()
+        if not key:
+            from tkinter import messagebox
+            messagebox.showwarning("Empty Key", "Please enter a serial key.")
+            return
+            
+        if self.verify_callback(key):
+            self.success = True
+            self.grab_release()
+            self.destroy()
+        else:
+            from tkinter import messagebox
+            messagebox.showerror("Activation Failed", "Invalid Serial Key for this machine.\nPlease make sure you copied it correctly.")
+
+    def on_close(self):
+        self.grab_release()
+        self.destroy()
+        import sys
+        sys.exit(0)
+
+
 # ── Main Application ──────────────────────────────────────────────────────────
 class QaffDigitalProfessional(ctk.CTk):
     def __init__(self):
@@ -158,6 +321,21 @@ class QaffDigitalProfessional(ctk.CTk):
         self.profiles_list = ["Default"]
         self.active_profile_name = "Default"
         self._load_profiles_config()
+        
+        # License check gate
+        self.license_key = getattr(self, "license_key", "")
+        hwid = self._get_hwid()
+        formatted_hwid = "-".join(hwid[i:i+4] for i in range(0, len(hwid), 4))
+        
+        if not self._verify_license_key(self.license_key):
+            self.withdraw()
+            dialog = LicenseActivationDialog(self, formatted_hwid, self._verify_license_key)
+            self.wait_window(dialog)
+            
+            if dialog.success:
+                self.license_key = dialog.entry_key.get().strip()
+                self._save_profiles_config()
+                self.deiconify()
         
         # Stdin buffers for each tool
         self.setup_input_gate = threading.Event()
@@ -375,6 +553,48 @@ del "%~f0"
             sys.exit(0)
         except Exception as e:
             messagebox.showerror("Update Error", f"Could not apply update:\n{e}")
+
+    def _get_hwid(self) -> str:
+        import subprocess
+        import uuid
+        import hashlib
+        
+        # Try motherboard UUID
+        try:
+            out = subprocess.check_output("wmic csproduct get uuid", shell=True).decode().split()
+            if len(out) >= 2:
+                val = out[1].strip()
+                if val and "FFFF" not in val.upper() and len(val) > 10:
+                    return hashlib.sha256(val.encode()).hexdigest()[:16].upper()
+        except Exception:
+            pass
+            
+        # Try C: drive serial number
+        try:
+            out = subprocess.check_output("wmic diskdrive get serialnumber", shell=True).decode().split()
+            if len(out) >= 2:
+                val = "".join(out[1:]).strip()
+                if val:
+                    return hashlib.sha256(val.encode()).hexdigest()[:16].upper()
+        except Exception:
+            pass
+            
+        # Fallback to MAC address
+        node_id = str(uuid.getnode())
+        return hashlib.sha256(node_id.encode()).hexdigest()[:16].upper()
+
+    def _verify_license_key(self, entered_key: str) -> bool:
+        import hashlib
+        SECRET_SALT = "QaffDigitalProfessionalLicenseKeySalt2026#!"
+        hwid = self._get_hwid()
+        
+        full_hash = hashlib.sha256((hwid + SECRET_SALT).encode()).hexdigest().upper()
+        expected_key = "-".join(full_hash[i:i+4] for i in range(0, 16, 4))
+        
+        clean_entered = entered_key.replace("-", "").replace(" ", "").upper()
+        clean_expected = expected_key.replace("-", "").replace(" ", "").upper()
+        
+        return clean_entered == clean_expected
 
     def _setup_global_keyboard_shortcuts(self):
         # Bind Control KeyPress globally to handle English & Arabic layouts on Windows
@@ -721,6 +941,7 @@ del "%~f0"
                     self.profiles_list = data.get("profiles", ["Default"])
                     self.active_profile_name = data.get("active_profile", "Default")
                     self.base_profiles_dir = data.get("base_profiles_dir", r"C:\QaffChromeProfile")
+                    self.license_key = data.get("license_key", "")
                     if self.active_profile_name not in self.profiles_list:
                         self.profiles_list.append(self.active_profile_name)
             except Exception:
@@ -734,7 +955,8 @@ del "%~f0"
                 json.dump({
                     "profiles": self.profiles_list,
                     "active_profile": self.active_profile_name,
-                    "base_profiles_dir": self.base_profiles_dir
+                    "base_profiles_dir": self.base_profiles_dir,
+                    "license_key": getattr(self, "license_key", "")
                 }, f, ensure_ascii=False, indent=2)
         except Exception:
             pass
