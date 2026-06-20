@@ -289,6 +289,7 @@ class LicenseActivationDialog(ctk.CTkToplevel):
             
         if self.verify_callback(key):
             self.success = True
+            self.entered_key = key
             self.grab_release()
             self.destroy()
         else:
@@ -315,6 +316,7 @@ class QaffDigitalProfessional(ctk.CTk):
         # Application state
         self.active_tool: str | None = None # None | "setup" | "delete" | "hours" | "endscreen"
         self.global_chrome_profile = ctk.StringVar(value=r"C:\QaffChromeProfile")
+        self.update_btn = None
 
         # Profile Manager State
         self.base_profiles_dir = r"C:\QaffChromeProfile"
@@ -333,7 +335,7 @@ class QaffDigitalProfessional(ctk.CTk):
             self.wait_window(dialog)
             
             if dialog.success:
-                self.license_key = dialog.entry_key.get().strip()
+                self.license_key = dialog.entered_key
                 self._save_profiles_config()
                 self.deiconify()
         
@@ -754,7 +756,7 @@ del "%~f0"
         elif name == "publish":
             self.publish_panel.grid(row=0, column=1, sticky="nsew", padx=24, pady=24)
 
-        if self.update_btn:
+        if hasattr(self, "update_btn") and self.update_btn:
             self.update_btn.lift()
 
     # ─── Home Dashboard Panel ─────────────────────────────────────────────────
