@@ -238,12 +238,143 @@ class QaffDigitalProfessional(ctk.CTk):
         
         self._auto_check_and_install_playwright()
 
+        # Update checker initialization
+        self.current_version = "1.1.0"
+        self.update_btn = None
+        self.temp_update_path = None
+        self.check_for_updates()
+
     def _optimized_configure(self, event):
         if event.widget == self:
             if (self._last_configure_width != event.width) or (self._last_configure_height != event.height):
                 self._last_configure_width = event.width
                 self._last_configure_height = event.height
                 self._update_dimensions_event(event)
+
+    def check_for_updates(self):
+        def _check_thread():
+            import urllib.request
+            import json
+            import tempfile
+            import os
+            
+            repo = "mahmoudmousa8/Qaff-Digital-Professional"
+            api_url = f"https://api.github.com/repos/{repo}/releases/latest"
+            headers = {"User-Agent": "Mozilla/5.0"}
+            
+            try:
+                req = urllib.request.Request(api_url, headers=headers)
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    data = json.loads(response.read().decode())
+                    remote_version = data.get("tag_name", "1.0.0").strip("v")
+                    
+                    # Parse version strings into lists of integers for safe comparison
+                    local_parts = list(map(int, self.current_version.split(".")))
+                    remote_parts = list(map(int, remote_version.split(".")))
+                    
+                    # Pad lists to equal length if necessary
+                    max_len = max(len(local_parts), len(remote_parts))
+                    local_parts += [0] * (max_len - len(local_parts))
+                    remote_parts += [0] * (max_len - len(remote_parts))
+                    
+                    if remote_parts > local_parts:
+                        # Find the EXE asset
+                        assets = data.get("assets", [])
+                        download_url = None
+                        for asset in assets:
+                            if asset.get("name", "").endswith(".exe"):
+                                download_url = asset.get("browser_download_url")
+                                break
+                        
+                        if not download_url and assets:
+                            download_url = assets[0].get("browser_download_url")
+                            
+                        if download_url:
+                            # Start downloading in the background
+                            temp_dir = tempfile.gettempdir()
+                            self.temp_update_path = os.path.join(temp_dir, "Qaff_Digital_Professional_update.exe")
+                            
+                            req_dl = urllib.request.Request(download_url, headers=headers)
+                            with urllib.request.urlopen(req_dl, timeout=60) as dl_resp:
+                                with open(self.temp_update_path, "wb") as f:
+                                    f.write(dl_resp.read())
+                                    
+                            # Download completed successfully, show update button!
+                            self.after(0, lambda: self.show_update_button(remote_version))
+            except Exception:
+                pass
+
+        import threading
+        threading.Thread(target=_check_thread, daemon=True).start()
+
+    def show_update_button(self, remote_version):
+        self.update_btn = ctk.CTkButton(
+            self,
+            text=f"🔄 Update v{remote_version}",
+            font=ctk.CTkFont("Segoe UI", 11, "bold"),
+            fg_color=C["warning"],
+            hover_color=C["warning_hover"],
+            text_color="#ffffff",
+            width=130,
+            height=28,
+            corner_radius=6,
+            command=self.apply_update
+        )
+        self.update_btn.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=10)
+        self.update_btn.lift()
+
+    def apply_update(self):
+        from tkinter import messagebox
+        import os
+        import sys
+        import subprocess
+
+        ans = messagebox.askyesno(
+            "Apply Update",
+            "A new update has been downloaded in the background.\n\n"
+            "Would you like to restart the application now to apply the update?"
+        )
+        if not ans:
+            return
+
+        current_exe = sys.executable
+        if not current_exe.endswith(".exe"):
+            messagebox.showinfo(
+                "Update Info",
+                f"Running from Python source code. The updated executable has been downloaded to:\n{self.temp_update_path}"
+            )
+            return
+
+        batch_path = os.path.join(os.path.dirname(current_exe), "apply_update.bat")
+        batch_content = f"""@echo off
+chcp 65001 >nul
+title Updating Qaff Digital Professional...
+echo Waiting for application to close...
+:loop
+tasklist /FI "PID eq {os.getpid()}" 2>NUL | find /I "{os.getpid()}" >NUL
+if "%ERRORLEVEL%"=="0" (
+    timeout /t 1 /nobreak >nul
+    goto loop
+)
+echo Applying update...
+del /f /q "{current_exe}"
+move /y "{self.temp_update_path}" "{current_exe}"
+echo Starting updated application...
+start "" "{current_exe}"
+del "%~f0"
+"""
+        try:
+            with open(batch_path, "w", encoding="utf-8") as f:
+                f.write(batch_content)
+            
+            subprocess.Popen(
+                ["cmd.exe", "/c", batch_path],
+                creationflags=subprocess.CREATE_NEW_CONSOLE | subprocess.DETACHED_PROCESS
+            )
+            self.destroy()
+            sys.exit(0)
+        except Exception as e:
+            messagebox.showerror("Update Error", f"Could not apply update:\n{e}")
 
     def _setup_global_keyboard_shortcuts(self):
         # Bind Control KeyPress globally to handle English & Arabic layouts on Windows
@@ -402,6 +533,9 @@ class QaffDigitalProfessional(ctk.CTk):
             self.endscreen_panel.grid(row=0, column=1, sticky="nsew", padx=24, pady=24)
         elif name == "publish":
             self.publish_panel.grid(row=0, column=1, sticky="nsew", padx=24, pady=24)
+
+        if self.update_btn:
+            self.update_btn.lift()
 
     # ─── Home Dashboard Panel ─────────────────────────────────────────────────
     def _build_home_panel(self):
