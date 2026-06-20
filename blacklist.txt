@@ -1,0 +1,2 @@
+# Qaff Digital Professional - Blacklisted HWIDs
+# Add one HWID per line (e.g. XXXX-XXXX-XXXX-XXXX)

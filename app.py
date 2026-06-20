@@ -326,6 +326,20 @@ class QaffDigitalProfessional(ctk.CTk):
         
         # License check gate
         self.license_key = getattr(self, "license_key", "")
+        
+        # Check blacklist first
+        if self._is_blacklisted():
+            self.license_key = ""
+            self._save_profiles_config()
+            from tkinter import messagebox
+            messagebox.showerror(
+                "Access Denied",
+                "This device has been deactivated/blacklisted by the developer.\n"
+                "Please contact the developer for assistance."
+            )
+            import sys
+            sys.exit(0)
+            
         hwid = self._get_hwid()
         formatted_hwid = "-".join(hwid[i:i+4] for i in range(0, len(hwid), 4))
         
@@ -597,6 +611,30 @@ del "%~f0"
         clean_expected = expected_key.replace("-", "").replace(" ", "").upper()
         
         return clean_entered == clean_expected
+
+    def _is_blacklisted(self) -> bool:
+        import urllib.request
+        
+        hwid = self._get_hwid()
+        formatted_hwid = "-".join(hwid[i:i+4] for i in range(0, len(hwid), 4))
+        
+        blacklist_url = "https://raw.githubusercontent.com/mahmoudmousa8/Qaff-Digital-Professional/main/blacklist.txt"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        
+        try:
+            req = urllib.request.Request(blacklist_url, headers=headers)
+            with urllib.request.urlopen(req, timeout=5) as response:
+                content = response.read().decode("utf-8")
+                
+                # Check both raw HWID and formatted HWID in the blacklist file (case-insensitive)
+                lines = [line.strip().upper() for line in content.split("\n")]
+                if hwid.upper() in lines or formatted_hwid.upper() in lines:
+                    return True
+        except Exception:
+            # If offline or connection fails, do not block
+            pass
+            
+        return False
 
     def _setup_global_keyboard_shortcuts(self):
         # Bind Control KeyPress globally to handle English & Arabic layouts on Windows
