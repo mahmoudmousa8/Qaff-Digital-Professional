@@ -555,7 +555,7 @@ del "%~f0"
             
             subprocess.Popen(
                 ["cmd.exe", "/c", batch_path],
-                creationflags=subprocess.CREATE_NEW_CONSOLE | subprocess.DETACHED_PROCESS
+                creationflags=subprocess.CREATE_NEW_CONSOLE
             )
             self.destroy()
             sys.exit(0)
