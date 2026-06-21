@@ -530,13 +530,50 @@ class QaffDigitalProfessional(ctk.CTk):
         # V (ra') = 86
         # X (hamza) = 88
         if event.keycode == 67:  # Ctrl+C / Ctrl+Arabic_C
-            widget.event_generate("<<Copy>>")
+            try:
+                if widget_class == "Text":
+                    widget.clipboard_clear()
+                    widget.clipboard_append(widget.get("sel.first", "sel.last"))
+                elif widget_class == "Entry":
+                    widget.clipboard_clear()
+                    widget.clipboard_append(widget.selection_get())
+            except Exception:
+                pass
             return "break"
         elif event.keycode == 86:  # Ctrl+V / Ctrl+Arabic_V
-            widget.event_generate("<<Paste>>")
+            try:
+                text = widget.clipboard_get()
+                if widget_class == "Text":
+                    try:
+                        widget.delete("sel.first", "sel.last")
+                    except Exception:
+                        pass
+                    widget.insert("insert", text)
+                elif widget_class == "Entry":
+                    try:
+                        start = widget.index("sel.first")
+                        end = widget.index("sel.last")
+                        widget.delete(start, end)
+                    except Exception:
+                        pass
+                    widget.insert(widget.index("insert"), text)
+            except Exception:
+                pass
             return "break"
         elif event.keycode == 88:  # Ctrl+X / Ctrl+Arabic_X
-            widget.event_generate("<<Cut>>")
+            try:
+                if widget_class == "Text":
+                    widget.clipboard_clear()
+                    widget.clipboard_append(widget.get("sel.first", "sel.last"))
+                    widget.delete("sel.first", "sel.last")
+                elif widget_class == "Entry":
+                    widget.clipboard_clear()
+                    widget.clipboard_append(widget.selection_get())
+                    start = widget.index("sel.first")
+                    end = widget.index("sel.last")
+                    widget.delete(start, end)
+            except Exception:
+                pass
             return "break"
         elif event.keycode == 65:  # Ctrl+A / Ctrl+Arabic_A
             if widget_class == "Text":
