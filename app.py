@@ -1981,7 +1981,7 @@ del "%~f0"
         ):
             try:
                 with auto_set_script.sync_playwright() as playwright:
-                    context, page = auto_set_script.launch_browser(playwright)
+                    context, page, _ = auto_set_script.launch_browser(playwright)
 
                     # Login step if needed
                     if getattr(auto_set_script, "PAUSE_FOR_LOGIN", True):
