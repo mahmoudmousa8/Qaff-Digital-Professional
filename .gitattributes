@@ -1,0 +1,7 @@
+# Explicitly declare binary files to prevent Git from converting LF to CRLF (which corrupts them)
+*.exe binary
+*.png binary
+*.ico binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
