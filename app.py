@@ -482,8 +482,25 @@ class QaffDigitalProfessional(ctk.CTk):
                         
                         req_dl = urllib.request.Request(download_url, headers=headers)
                         with urllib.request.urlopen(req_dl, timeout=60) as dl_resp:
+                            content_length = dl_resp.headers.get('Content-Length')
+                            expected_size = int(content_length) if content_length else 0
+                            
+                            downloaded_size = 0
                             with open(self.temp_update_path, "wb") as f:
-                                f.write(dl_resp.read())
+                                while True:
+                                    chunk = dl_resp.read(1024 * 64)
+                                    if not chunk:
+                                        break
+                                    f.write(chunk)
+                                    downloaded_size += len(chunk)
+                            
+                            if expected_size > 0 and downloaded_size != expected_size:
+                                if os.path.exists(self.temp_update_path):
+                                    try:
+                                        os.remove(self.temp_update_path)
+                                    except Exception:
+                                        pass
+                                raise Exception(f"Incomplete download: got {downloaded_size} of {expected_size} bytes")
                                 
                         # Download completed successfully, show update button!
                         self.after(0, lambda: self.show_update_button(remote_version))
@@ -542,9 +559,23 @@ if "%ERRORLEVEL%"=="0" (
     timeout /t 1 /nobreak >nul
     goto loop
 )
+timeout /t 1 /nobreak >nul
+
 echo Applying update...
-del /f /q "{current_exe}"
-move /y "{self.temp_update_path}" "{current_exe}"
+:del_loop
+del /f /q "{current_exe}" 2>NUL
+if exist "{current_exe}" (
+    timeout /t 1 /nobreak >nul
+    goto del_loop
+)
+
+:move_loop
+move /y "{self.temp_update_path}" "{current_exe}" 2>NUL
+if not exist "{current_exe}" (
+    timeout /t 1 /nobreak >nul
+    goto move_loop
+)
+
 echo Starting updated application...
 start "" "{current_exe}"
 del "%~f0"
