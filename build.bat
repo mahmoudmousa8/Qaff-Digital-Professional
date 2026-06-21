@@ -62,5 +62,5 @@ exit /b 1
 
 :end
 echo.
-pause
+if not "%CI%"=="true" if not "%GITHUB_ACTIONS%"=="true" pause
 endlocal

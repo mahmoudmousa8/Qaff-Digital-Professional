@@ -1,0 +1,41 @@
+name: Build and Release EXE
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger build on version tag pushes, e.g. v1.1.1
+
+permissions:
+  contents: write # Allows creation of releases and uploading assets
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip' # Auto-caches python packages
+
+      - name: Install dependencies
+        run: |
+          pip install pyinstaller Pillow customtkinter playwright rich --quiet
+
+      - name: Build Application
+        run: |
+          build.bat
+        shell: cmd
+
+      - name: Create GitHub Release and Upload Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/Qaff Digital Professional.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
