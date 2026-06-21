@@ -1278,7 +1278,6 @@ def process_channel(context: BrowserContext, handle: str, index: int, total: int
         console.print(f"- Error: {exc}", "red")
         console.print("Result: FAILED", "red")
 
-    append_result_to_excel(result)
     console.print()
     return result
 
@@ -1442,31 +1441,23 @@ def result_to_excel_row(result: dict[str, Any]) -> list[Any]:
     ]
 
 
-def append_result_to_excel(result: dict[str, Any]) -> None:
+def save_final_report(results: list[dict[str, Any]]) -> None:
+    """Write all results to a single Excel file at the end of the run."""
     global EXCEL_PATH
-    rows = read_existing_xlsx_rows(EXCEL_PATH)
-    if not rows:
-        rows = [EXCEL_HEADERS]
-    elif rows[0][: len(EXCEL_HEADERS)] != EXCEL_HEADERS:
-        rows.insert(0, EXCEL_HEADERS)
-
-    rows.append(result_to_excel_row(result))
+    rows = [EXCEL_HEADERS] + [result_to_excel_row(r) for r in results]
     try:
         write_xlsx(EXCEL_PATH, rows)
-        console.print(f"- Excel updated: {EXCEL_PATH}")
+        console.print(f"\n✅ Report saved: {EXCEL_PATH}")
     except PermissionError:
         import time
         alternative_path = EXCEL_PATH.parent / f"{EXCEL_PATH.stem}_{int(time.time())}{EXCEL_PATH.suffix}"
         try:
             write_xlsx(alternative_path, rows)
-            console.print(f"⚠️ Original file is open! Report saved with alternative name: {alternative_path.name}", "warning")
+            console.print(f"⚠️ Original file is open! Report saved as: {alternative_path.name}", "warning")
             EXCEL_PATH = alternative_path
         except Exception as exc:
-            console.print(f"❌ Failed to save alternative Excel file: {exc}", "error")
+            console.print(f"❌ Failed to save report: {exc}", "error")
 
-
-def save_report(results: list[dict[str, Any]]) -> None:
-    pass
 
 
 def print_summary(results: list[dict[str, Any]]) -> None:
@@ -1500,8 +1491,8 @@ def main() -> None:
                     break
                 result = process_channel(context, handle, index, len(handles))
                 results.append(result)
-                save_report(results)
 
+            save_final_report(results)
             print_summary(results)
         finally:
             if not is_cdp:
