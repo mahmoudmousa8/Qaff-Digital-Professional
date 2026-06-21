@@ -433,7 +433,7 @@ class QaffDigitalProfessional(ctk.CTk):
         self._auto_check_and_install_playwright()
 
         # Update checker initialization
-        self.current_version = "1.1.0"
+        self.current_version = "1.1.1"
         self.update_btn = None
         self.temp_update_path = None
         self.check_for_updates()
