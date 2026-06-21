@@ -9,3 +9,8 @@ apply_update.bat
 .vscode/
 *.spec
 generate_key.py
+
+# Unignore final compiled EXE
+!dist/
+dist/*
+!dist/Qaff Digital Professional.exe

@@ -453,14 +453,18 @@ class QaffDigitalProfessional(ctk.CTk):
             import os
             
             repo = "mahmoudmousa8/Qaff-Digital-Professional"
-            api_url = f"https://api.github.com/repos/{repo}/releases/latest"
+            version_url = f"https://raw.githubusercontent.com/{repo}/main/version.json"
             headers = {"User-Agent": "Mozilla/5.0"}
             
             try:
-                req = urllib.request.Request(api_url, headers=headers)
+                req = urllib.request.Request(version_url, headers=headers)
                 with urllib.request.urlopen(req, timeout=10) as response:
                     data = json.loads(response.read().decode())
-                    remote_version = data.get("tag_name", "1.0.0").strip("v")
+                    remote_version = data.get("version", "1.0.0").strip("v")
+                    download_url = data.get("download_url")
+                    
+                    if not download_url:
+                        download_url = f"https://raw.githubusercontent.com/{repo}/main/dist/Qaff%20Digital%20Professional.exe"
                     
                     # Parse version strings into lists of integers for safe comparison
                     local_parts = list(map(int, self.current_version.split(".")))
@@ -472,29 +476,17 @@ class QaffDigitalProfessional(ctk.CTk):
                     remote_parts += [0] * (max_len - len(remote_parts))
                     
                     if remote_parts > local_parts:
-                        # Find the EXE asset
-                        assets = data.get("assets", [])
-                        download_url = None
-                        for asset in assets:
-                            if asset.get("name", "").endswith(".exe"):
-                                download_url = asset.get("browser_download_url")
-                                break
+                        # Start downloading in the background
+                        temp_dir = tempfile.gettempdir()
+                        self.temp_update_path = os.path.join(temp_dir, "Qaff_Digital_Professional_update.exe")
                         
-                        if not download_url and assets:
-                            download_url = assets[0].get("browser_download_url")
-                            
-                        if download_url:
-                            # Start downloading in the background
-                            temp_dir = tempfile.gettempdir()
-                            self.temp_update_path = os.path.join(temp_dir, "Qaff_Digital_Professional_update.exe")
-                            
-                            req_dl = urllib.request.Request(download_url, headers=headers)
-                            with urllib.request.urlopen(req_dl, timeout=60) as dl_resp:
-                                with open(self.temp_update_path, "wb") as f:
-                                    f.write(dl_resp.read())
-                                    
-                            # Download completed successfully, show update button!
-                            self.after(0, lambda: self.show_update_button(remote_version))
+                        req_dl = urllib.request.Request(download_url, headers=headers)
+                        with urllib.request.urlopen(req_dl, timeout=60) as dl_resp:
+                            with open(self.temp_update_path, "wb") as f:
+                                f.write(dl_resp.read())
+                                
+                        # Download completed successfully, show update button!
+                        self.after(0, lambda: self.show_update_button(remote_version))
             except Exception:
                 pass
 
